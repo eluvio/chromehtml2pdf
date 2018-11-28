@@ -31,7 +31,7 @@
   "bundleDependencies": false,
   "dependencies": {
     "commander": "^2.13.0",
-    "puppeteer": "^1.0.0"
+    "puppeteer-core": "^1.0.0"
   },
   "deprecated": false,
   "description": "Create PDFs from HTML files/web pages from the command line.",
