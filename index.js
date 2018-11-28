@@ -19,7 +19,7 @@ c
   .option('-p, --executable-path <value>', 'If you don\'t want to use the chromium that is packaged with puppeteer, enter the full path to the executable you want here.')
   .option(' --landscape <true|false>','Whether or not to print in landscape mode. Defaults to false.', parseBoolean)
   .option(' --displayHeaderFooter <true|false>','Display header and footer. Defaults to false.', parseBoolean)
-  .option(' --printBackground <true|false>','Print background graphics. Defaults to false.')
+  .option(' --printBackground <true|false>','Print background graphics. Defaults to false.', parseBoolean)
   .option(' --scale <n>','Scale of the webpage rendering. Defaults to 1.', parseFloat)
   .option(' --width <n>','Paper width with units. Defaults to 8.5 inches.', parseFloat)
   .option(' --height <n>','Paper height with units. Defaults to 11 inches.', parseFloat)
