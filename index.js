@@ -1,25 +1,21 @@
 #!/usr/bin/env node
 
-// Load packages that we need
-const c = require('commander');
-const p = require('puppeteer-core');
+const program = require('commander');
+const puppeteer = require('puppeteer');
 
-function parseBoolean(val) {
-  return (val && (val=='1' || val.toLowerCase()=='true'));
-}
+var url = undefined;
 
-c
-  .version('0.1.0')
-  //.usage('[options] <file or website...>')
-  .arguments('<file>')
-  .option('-o, --out <n>', 'Output file name.')
+program
+  .version('1.0.5')
+  .arguments('<url>')
+  .option('-o, --out <path>', 'Output file name.')
   .option('-s, --no-sandbox', 'Disable chrome sandbox.')
-  .option('-t, --timeout <a>', 'Specify a timeout (in milliseconds).  Defaults to 30 seconds, pass 0 to disable timeout.', parseInt, 30000)
+  .option('-t, --timeout <millis>', 'Specify a timeout (in milliseconds).  Defaults to 30 seconds, pass 0 to disable timeout.', parseInt, 30000)
   .option('-j, --disable-javascript', 'Whether to disable JavaScript on the page.  Defaults to enabled.')
   .option('-p, --executable-path <value>', 'If you don\'t want to use the chromium that is packaged with puppeteer, enter the full path to the executable you want here.')
-  .option(' --landscape <true|false>','Whether or not to print in landscape mode. Defaults to false.', parseBoolean)
-  .option(' --displayHeaderFooter <true|false>','Display header and footer. Defaults to false.', parseBoolean)
-  .option(' --printBackground <true|false>','Print background graphics. Defaults to false.', parseBoolean)
+  .option(' --landscape','Whether or not to print in landscape mode. Defaults to false.')
+  .option(' --displayHeaderFooter','Display header and footer. Defaults to false.')
+  .option(' --printBackground','Print background graphics. Defaults to false.')
   .option(' --scale <n>','Scale of the webpage rendering. Defaults to 1.', parseFloat)
   .option(' --width <n>','Paper width with units. Defaults to 8.5 inches.', parseFloat)
   .option(' --height <n>','Paper height with units. Defaults to 11 inches.', parseFloat)
@@ -34,82 +30,79 @@ c
     'A4: 8.27in x 11.7in\n'+
     'A5: 5.83in x 8.27in\n'+
     'A6: 4.13in x 5.83in\n')
-  .option(' --marginTop','Top margin in inches. Defaults to 1cm (~0.4 inches).', parseFloat)
-  .option(' --marginBottom','Bottom margin in inches. Defaults to 1cm (~0.4 inches).', parseFloat)
-  .option(' --marginLeft','Left margin in inches. Defaults to 1cm (~0.4 inches).', parseFloat)
-  .option(' --marginRight','Right margin in inches. Defaults to 1cm (~0.4 inches).', parseFloat)
-  .option(' --pageRanges','Paper ranges to print, e.g., \'1-5, 8, 11-13\'. Defaults to the empty string, which means print all pages.')
-  // not supported by puppeteer
-  //.option(' --ignoreInvalidPageRanges','Whether to silently ignore invalid but successfully parsed page ranges, such as \'3-2\'. Defaults to false.')
-  .option(' --headerTemplate','HTML template for the print header. Should be valid HTML markup with following classes used to inject printing values into them: - date - formatted print date - title - document title - url - document location - pageNumber - current page number - totalPages - total pages in the document For example, would generate span containing the title.')
-  .option(' --footerTemplate','HTML template for the print footer. Should use the same format as the `headerTemplate`.')
-  // not supported by puppeteer
-  //.option(' --preferCSSPageSize','Whether or not to prefer page size as defined by css. Defaults to false, in which case the content will be scaled to fit the paper size.')
-  .action(function(file, config) {
-    console.log('Converting file: %s', file);
+  .option(' --marginTop <inches>','Top margin in inches. Defaults to 1cm (~0.4 inches).', parseFloat)
+  .option(' --marginBottom <inches>','Bottom margin in inches. Defaults to 1cm (~0.4 inches).', parseFloat)
+  .option(' --marginLeft <inches>','Left margin in inches. Defaults to 1cm (~0.4 inches).', parseFloat)
+  .option(' --marginRight <inches>','Right margin in inches. Defaults to 1cm (~0.4 inches).', parseFloat)
+  .option(' --pageRanges <range>','Paper ranges to print, e.g., \'1-5, 8, 11-13\'. Defaults to the empty string, which means print all pages.')
+  .option(' --headerTemplate <html>','HTML template for the print header. Should be valid HTML markup with following classes used to inject printing values into them: - date - formatted print date - title - document title - url - document location - pageNumber - current page number - totalPages - total pages in the document For example, would generate span containing the title.')
+  .option(' --footerTemplate <html>','HTML template for the print footer. Should use the same format as the `headerTemplate`.')
+  .action(function(urlArg){
+    url = urlArg;
+  });
+  
+program.parse(process.argv);
+  
+console.log('Converting file: %s', url);
 
-    if (!config.out) {
-      console.log("You need to include a parameter --out to hold the output file name.");
-      process.exit(1);
+if (!program.out) {
+  console.log("You need to include a parameter --out to hold the output file name.");
+  process.exit(1);
+}
+
+const pdfOptions = {
+  path: program.out,
+  scale: program.scale,
+  displayHeaderFooter: program.displayHeaderFooter,
+  headerTemplate: program.headerTemplate,
+  footerTemplate: program.footerTemplate,
+  printBackground: program.printBackground,
+  landscape: program.landscape,
+  pageRanges: program.pageRanges,
+  format: program.format,
+  width: program.width,
+  height: program.height,
+};
+
+if (program.marginTop || program.marginRight || program.marginBottom || program.marginLeft) {
+  pdfOptions.margin = {
+    top: program.marginTop,
+    right: program.marginRight,
+    bottom: program.marginBottom,
+    left: program.marginLeft
+  };
+}
+
+// Get the page to create the PDF.
+(async () => {
+  try {
+    var launchConfig = {};
+    
+    if (!program.sandbox) {
+      console.log('Warning: running chrome without sandbox');
+      launchConfig.args = ['--no-sandbox', '--disable-setuid-sandbox'];
     }
 
-    let pdfOptions = {
-      path: config.out,
-      scale: config.scale,
-      displayHeaderFooter: config.displayHeaderFooter,
-      headerTemplate: config.headerTemplate,
-      footerTemplate: config.footerTemplate,
-      printBackground: config.printBackground,
-      landscape: config.landscape,
-      pageRanges: config.pageRanges,
-      format: config.format,
-      width: config.width,
-      height: config.height,
-    };
-
-    if (config.marginTop || config.marginRight || config.marginBottom || config.marginLeft) {
-      pdfOptions.margin = {
-        top: config.marginTop,
-        right: config.marginRight,
-        bottom: config.marginBottom,
-        left: config.marginLeft
-      };
+    if (program.executablePath) {
+      console.log('Using chrome executable: '+program.executablePath);
+      launchConfig.executablePath = program.executablePath;
     }
 
-    // Get the page to create the PDF.
-    (async () => {
-      try{
-        var launchConfig = {};
-        if (!config.sandbox) {
-          console.log('Warning: running chrome without sandbox');
-          launchConfig.args = ['--no-sandbox', '--disable-setuid-sandbox'];
-        }
+    const browser = await puppeteer.launch(launchConfig);
+    const page = await browser.newPage();
 
-        if (config.executablePath){
-          console.log('Using chrome executable: '+config.executablePath);
-          launchConfig.executablePath = config.executablePath;
-        }
+    page.setJavaScriptEnabled(program.disableJavascript ? false : true);
 
-        const browser = await p.launch(launchConfig);
-        const page = await browser.newPage();
+    await page.goto(url, {
+      timeout: program.timeout,
+      waitUntil: 'networkidle0'
+    });
 
-        page.setJavaScriptEnabled((config.disableJavascript) ? false : true);
+    await page.pdf(pdfOptions);
+    await browser.close();
+  } catch(e) {
+    console.log(e);
+    process.exit(1);
+  }
 
-        await page.goto(file, {
-          timeout: config.timeout,
-          waitUntil: 'networkidle0'
-        });
-
-        await page.pdf(pdfOptions);
-        await browser.close();
-      }
-      catch(e){
-        console.log(e);
-        process.exit(1);
-      }
-
-    })();
-  })
-  .parse(process.argv);
-
-//console.log(process.argv);
+})();
