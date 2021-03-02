@@ -1,6 +1,6 @@
 {
   "name": "chromehtml2pdf",
-  "version": "1.0.5",
+  "version": "2.0.0",
   "description": "Create PDFs from HTML files/web pages from the command line.",
   "main": "index.js",
   "repository": {
@@ -15,7 +15,7 @@
   },
   "dependencies": {
      "commander": "2.20.0",
-     "puppeteer": "1.19.0"
+     "puppeteer": "8.0.0"
   },
   "author": "DataVerity, Inc",
   "license": "Apache-2.0"
